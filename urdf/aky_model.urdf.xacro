@@ -1,0 +1,144 @@
+<?xml version="1.0"?>
+<robot name="aky_model_ugv" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Dimensions are metres. ROS body convention: x forward, y left, z up. -->
+  <xacro:property name="chassis_length" value="0.70"/>
+  <xacro:property name="chassis_width" value="0.46"/>
+  <xacro:property name="chassis_height" value="0.16"/>
+  <xacro:property name="base_height" value="0.12"/>
+  <xacro:property name="wheel_radius" value="0.09"/>
+  <xacro:property name="wheel_width" value="0.06"/>
+  <xacro:property name="wheel_x" value="0.25"/>
+  <xacro:property name="wheel_y" value="0.255"/>
+  <xacro:property name="wheel_z" value="-0.03"/>
+
+  <material name="ugv_blue">
+    <color rgba="0.05 0.28 0.55 1.0"/>
+  </material>
+  <material name="battery_orange">
+    <color rgba="0.95 0.34 0.05 1.0"/>
+  </material>
+  <material name="wheel_black">
+    <color rgba="0.04 0.04 0.04 1.0"/>
+  </material>
+  <material name="wheel_marker">
+    <color rgba="0.95 0.85 0.10 1.0"/>
+  </material>
+  <material name="camera_gray">
+    <color rgba="0.25 0.25 0.27 1.0"/>
+  </material>
+
+  <!-- The ground-contact frame is the URDF root. -->
+  <link name="base_footprint"/>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${base_height}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Main chassis. -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="12.0"/>
+      <inertia ixx="0.35" ixy="0.0" ixz="0.0" iyy="0.55" iyz="0.0" izz="0.70"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+      <material name="ugv_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- A clearly visible battery pack makes this a custom rover rather than a plain box. -->
+  <link name="battery_link">
+    <visual>
+      <geometry>
+        <box size="0.30 0.22 0.10"/>
+      </geometry>
+      <material name="battery_orange"/>
+    </visual>
+  </link>
+  <joint name="battery_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="battery_link"/>
+    <origin xyz="-0.04 0 0.13" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Forward camera and optical frame provide useful, named TF frames. -->
+  <link name="camera_link">
+    <visual>
+      <geometry>
+        <box size="0.12 0.10 0.08"/>
+      </geometry>
+      <material name="camera_gray"/>
+    </visual>
+  </link>
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0.25 0 0.17" rpy="0 0 0"/>
+  </joint>
+  <link name="camera_optical_frame"/>
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_optical_frame"/>
+    <origin xyz="0.06 0 0" rpy="-1.5708 0 -1.5708"/>
+  </joint>
+
+  <!-- Reusable Xacro macro prevents four copied wheel definitions. -->
+  <xacro:macro name="wheel" params="prefix x y">
+    <link name="${prefix}_wheel_link">
+      <inertial>
+        <mass value="0.6"/>
+        <inertia ixx="0.003" ixy="0.0" ixz="0.0" iyy="0.003" iyz="0.0" izz="0.002"/>
+      </inertial>
+      <visual>
+        <!-- A cylinder points along z by default, so rotate it onto the y axle. -->
+        <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+        <material name="wheel_black"/>
+      </visual>
+      <!-- This off-centre yellow marker makes wheel rotation obvious in RViz. -->
+      <visual>
+        <origin xyz="0 0 ${wheel_radius + 0.010}" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.025 0.066 0.014"/>
+        </geometry>
+        <material name="wheel_marker"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${prefix}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${prefix}_wheel_link"/>
+      <origin xyz="${x} ${y} ${wheel_z}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="15.0" velocity="20.0"/>
+      <dynamics damping="0.1" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:wheel prefix="front_left" x="${wheel_x}" y="${wheel_y}"/>
+  <xacro:wheel prefix="rear_left" x="${-wheel_x}" y="${wheel_y}"/>
+  <xacro:wheel prefix="front_right" x="${wheel_x}" y="${-wheel_y}"/>
+  <xacro:wheel prefix="rear_right" x="${-wheel_x}" y="${-wheel_y}"/>
+
+</robot>
